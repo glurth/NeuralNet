@@ -1,0 +1,14 @@
+{
+  "name": "com.glurth.neuralnet",
+  "version": "1.0.0",
+  "displayName": "Neural Network",
+  "description": "Provides classes that implement a basic neural network.",
+  "unity": "2019.1",
+  "dependencies": {
+    "com.glurth.limitedobjectscrollist": "1.0.0"
+  },
+  "author": {
+    "name": "Glurth"
+  },
+  "hideInEditor": "false"
+}

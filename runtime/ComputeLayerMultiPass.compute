@@ -1,0 +1,176 @@
+#pragma kernel ComputeLayerWeightedSum
+#pragma kernel OneDimComputeLayerWeightedSum
+#pragma kernel ZeroOutputs
+
+#pragma kernel ApplyBiasAndActivationNone
+#pragma kernel ApplyBiasAndActivationReLU
+#pragma kernel ApplyBiasAndActivationSigmoid
+#pragma kernel ApplyBiasAndActivationTanh01
+
+#pragma kernel BackPropegateZeroErrorsStart
+#pragma kernel BackPropegateNoneSinglePass
+#pragma kernel BackPropegateReLuSinglePass
+#pragma kernel BackPropegateSigmoidSinglePass
+#pragma kernel BackPropegateTanh01SinglePass
+
+// Buffers for weights and biases
+RWStructuredBuffer<float> weightBuffer;
+RWStructuredBuffer<float> biasBuffer;
+// Buffer for neuron inputs
+RWStructuredBuffer<float> inputBuffer;
+// Buffer for neuron outputs
+RWStructuredBuffer<float> outputBuffer;
+
+//***** backpropegation ******
+// Buffer for neuron input error backpropegation
+RWStructuredBuffer<float> inputErrorBuffer; //per input
+RWStructuredBuffer<float> outputErrorBuffer; //per neuron
+//StructuredBuffer<float> biasErrorBuffer; //per neuron
+//StructuredBuffer<float> weightErrorBuffer; //per input per neuron
+
+uniform float learningRate;
+
+// Number of inputs and neurons (passed as uniforms)
+uniform uint numInputs;
+uniform uint numNeurons;
+
+//this function should be called first, when a layer thinks
+[numthreads(256, 1, 1)] // id.x is neuron index
+void ZeroOutputs(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= numNeurons)
+        return;
+    outputBuffer[id.x] = 0;
+}
+
+//this function should be called second, when a layer thinks
+[numthreads(32, 32, 1)]// id.x is neuron index //id.y is input index for neuron id.x
+void ComputeLayerWeightedSum(uint3 id : SV_DispatchThreadID)
+{
+    int offset = id.x * numInputs;// starting index of input in weight buffer
+    outputBuffer[id.x] += inputBuffer[id.y] * weightBuffer[offset + id.y];
+    //moved bias and activation function to separately dispatched outside shader so we can parallelize id.y
+}
+
+//OR this function should be called second, when a layer thinks
+[numthreads(256, 1, 1)] //id.x is the weight buffer index
+void OneDimComputeLayerWeightedSum(uint3 id : SV_DispatchThreadID)
+{
+    int inputIndex = id.x % numInputs;
+    int neuronIndex = id.x / numInputs; //drop the fraction/remainder
+    outputBuffer[neuronIndex] += inputBuffer[inputIndex] * weightBuffer[id.x]; 
+    //moved bias and activation function to separately dispatched outside shader so we can parallelize id.y
+}
+
+//internal function used by all ApplyBiasAndActivation kernel's to check bounds and apply bias
+//returns false if index is out of bounds
+bool CheckRangeGetBiasedOutput(uint index,out float biasedOutput)
+{
+    if (index >= numNeurons) return false;
+    biasedOutput = outputBuffer[index] + biasBuffer[index];
+    return true;
+}
+
+//One of these ApplyBiasAndActivation functions should be called last, when a layer thinks
+[numthreads(256, 1, 1)]
+void ApplyBiasAndActivationNone(uint3 id : SV_DispatchThreadID)
+{
+    float biasedOutput;
+    if (CheckRangeGetBiasedOutput(id.x, biasedOutput))//returns false if index is out of bounds
+        outputBuffer[id.x] = biasedOutput;
+}
+
+
+[numthreads(256, 1, 1)]
+void ApplyBiasAndActivationReLU(uint3 id : SV_DispatchThreadID)
+{
+    float biasedOutput;
+    if (CheckRangeGetBiasedOutput(id.x, biasedOutput))
+        outputBuffer[id.x] = max(0, biasedOutput);
+    // ... (ReLU activation function)
+}
+
+[numthreads(256, 1, 1)]
+void ApplyBiasAndActivationSigmoid(uint3 id : SV_DispatchThreadID)
+{
+    // ... (Sigmoid activation function)
+    float biasedOutput;
+    if (CheckRangeGetBiasedOutput(id.x, biasedOutput))
+        outputBuffer[id.x] = 1.0 / (1.0 + exp(-biasedOutput));
+}
+
+[numthreads(256, 1, 1)]
+void ApplyBiasAndActivationTanh01(uint3 id : SV_DispatchThreadID)
+{
+    // ... (Tanh01 activation function)
+    float biasedOutput;
+    if (CheckRangeGetBiasedOutput(id.x, biasedOutput))
+        outputBuffer[id.x] = (1.0 + tanh(-biasedOutput)) * 0.5;
+}
+
+
+[numthreads(256, 1, 1)]
+void BackPropegateZeroErrorsStart(uint3 id : SV_DispatchThreadID)//id.x is input id
+{
+    inputErrorBuffer[id.x] = 0;
+}
+
+void BackPropegateSinglePass(int neuronID, float outputActiovationDerivative)
+{
+
+    float outputError = outputErrorBuffer[neuronID];
+    // Compute the gradient for biases
+   
+    float bError = outputError * outputActiovationDerivative;
+    //biasErrorBuffer[id.x] =bError; // for rendering
+    // Update biases
+    biasBuffer[neuronID] -= learningRate * bError; // biasErrorBuffer[id.x];
+    uint offset = neuronID * numInputs;
+    // Compute the gradient for weights
+    for (uint j = 0; j < numInputs; j++)
+    {
+        uint weightIndex = offset + j;
+        
+        float wError = outputError * outputActiovationDerivative * inputBuffer[j];
+        //weightErrorBuffer[offset + j] =wError;
+        // Accumulate errors to be propagated to the previous layer
+        inputErrorBuffer[j] += outputError * outputActiovationDerivative * weightBuffer[weightIndex];
+        //update weights
+        weightBuffer[weightIndex] -= learningRate * wError; //weightErrorBuffer[offset + j];
+    }
+}
+
+[numthreads(256, 1, 1)]
+void BackPropegateNoneSinglePass(uint3 id : SV_DispatchThreadID)//id.x is neuron id
+{
+    float lastOutputActivationDerivative = 1;
+    BackPropegateSinglePass(id.x, lastOutputActivationDerivative);
+}
+
+[numthreads(256, 1, 1)]
+void BackPropegateReLuSinglePass(uint3 id : SV_DispatchThreadID)//id.x is neuron id
+{
+    float lastOutputActivationDerivative = 0;
+    if (outputBuffer[id.x] > 0)
+        lastOutputActivationDerivative = 1;
+    BackPropegateSinglePass(id.x, lastOutputActivationDerivative);
+
+}
+[numthreads(256, 1, 1)]
+void BackPropegateSigmoidSinglePass(uint3 id : SV_DispatchThreadID)//id.x is neuron id
+{
+    float sigmoid = 1.0f / (1.0f + exp(-outputBuffer[id.x]));
+    float lastOutputActivationDerivative = sigmoid * (1 - sigmoid);
+    if (outputBuffer[id.x] > 0)
+        lastOutputActivationDerivative = 1;
+    BackPropegateSinglePass(id.x, lastOutputActivationDerivative);
+
+}
+[numthreads(256, 1, 1)]
+void BackPropegateTanh01SinglePass(uint3 id : SV_DispatchThreadID)//id.x is neuron id
+{
+    float t = (1.0f + (float) tanh(outputBuffer[id.x] * 2.0f - 1.0f)) * 0.5f;
+    float lastOutputActivationDerivative = (1 - t) * t; // Derivative of tanh (scaled to [0, 1])
+    BackPropegateSinglePass(id.x, lastOutputActivationDerivative);
+
+}
