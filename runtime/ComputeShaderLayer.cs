@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using Cysharp.Threading.Tasks;// System.Threading.Tasks;
-
+using UnityEngine.Rendering;
 using UnityEngine;
 namespace EyE.NNET
 {
@@ -261,17 +261,18 @@ namespace EyE.NNET
         List<UnityEngine.Rendering.AsyncGPUReadbackRequest> requests = new List<UnityEngine.Rendering.AsyncGPUReadbackRequest>();  //list of requests, one for each buffer
         public void RequestGPUData()
         {
-            
+            if (requests.Count > 0) return; //already in the process of waiting for requested data
             // Add all the readback requests to the list
-            requests.Add(UnityEngine.Rendering.AsyncGPUReadback.Request(inputBuffer));
-            requests.Add(UnityEngine.Rendering.AsyncGPUReadback.Request(outputBuffer));
-            requests.Add(UnityEngine.Rendering.AsyncGPUReadback.Request(weightsBuffer));
-            requests.Add(UnityEngine.Rendering.AsyncGPUReadback.Request(biasesBuffer));
-            requests.Add(UnityEngine.Rendering.AsyncGPUReadback.Request(propegatedErrorBuffer));
-            requests.Add(UnityEngine.Rendering.AsyncGPUReadback.Request(sourceErrorBuffer));
+            requests.Add(AsyncGPUReadback.Request(inputBuffer));
+            requests.Add(AsyncGPUReadback.Request(outputBuffer));
+            requests.Add(AsyncGPUReadback.Request(weightsBuffer));
+            requests.Add(AsyncGPUReadback.Request(biasesBuffer));
+            requests.Add(AsyncGPUReadback.Request(propegatedErrorBuffer));
+            requests.Add(AsyncGPUReadback.Request(sourceErrorBuffer));
         }
         async public UniTask WaitForGPUData()
         {
+            if (requests.Count == 0) return; //no pending requests
             // Wait for all requests to complete
             int requestsCount = requests.Count;
             for(int i=0;i<requestsCount;i++)
