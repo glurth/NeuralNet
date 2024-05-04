@@ -2,11 +2,11 @@
 #pragma kernel ComputeLayerReLU
 #pragma kernel ComputeLayerSigmoid
 #pragma kernel ComputeLayerTanh01
-#pragma kernel BackPropegateZeroErrorsStart
+/*#pragma kernel BackPropegateZeroErrorsStart
 #pragma kernel BackPropegateNoneSinglePass
 #pragma kernel BackPropegateReLuSinglePass
 #pragma kernel BackPropegateSigmoidSinglePass
-#pragma kernel BackPropegateTanh01SinglePass
+#pragma kernel BackPropegateTanh01SinglePass*/
 
 
 #pragma kernel  BackPropegateNoneComputeActivationDerivatiePass
