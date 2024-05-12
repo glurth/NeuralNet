@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 705507994}
-  m_IndirectSpecularColor: {r: 0.44657898, g: 0.4964133, b: 0.5748178, a: 1}
+  m_IndirectSpecularColor: {r: 0, g: 0, b: 0, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -334,6 +334,64 @@ MonoBehaviour:
   focusAtDefaultDistance: 2
   reFocusSpeed: 1
   reFocusRotSpeed: 1
+--- !u!1 &1187602264
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1187602266}
+  - component: {fileID: 1187602265}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!114 &1187602265
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1187602264}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8019ba24e94836646bb5040f64e9824e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  input0: 1
+  input1: 1
+  inputOp: 0
+  display1: {fileID: 1655428333}
+  continuousThink: 0
+  singleThink: 1
+  funcToUse: 0
+  learningRate: 0.01
+  layerComputeShader: {fileID: 7200000, guid: d060ac3f13e3d3845a73518bb62f981d, type: 3}
+  singlePassComputeShader: 1
+  useLog: 1
+  processUntilCycle: -1
+  changeAfterNumAttempts: 100
+--- !u!4 &1187602266
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1187602264}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1655428334}
+  m_Father: {fileID: 0}
+  m_RootOrder: 3
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1311846686
 GameObject:
   m_ObjectHideFlags: 0
@@ -368,13 +426,13 @@ MonoBehaviour:
   inputOp: 0
   display1: {fileID: 1668418324}
   display2: {fileID: 1315735624}
-  continuousThink: 1
-  singleThink: 0
-  funcToUse: 1
+  continuousThink: 0
+  singleThink: 1
+  funcToUse: 0
   learningRate: 0.0001
   layerComputeShader: {fileID: 7200000, guid: d060ac3f13e3d3845a73518bb62f981d, type: 3}
   singlePassComputeShader: 1
-  useLog: 0
+  useLog: 1
   processUntilCycle: -1
   changeAfterNumAttempts: 1
 --- !u!4 &1311846688
@@ -441,7 +499,8 @@ MonoBehaviour:
   neuronColor: {r: 0, g: 0, b: 1, a: 1}
   connectionColor: {r: 1, g: 1, b: 1, a: 1}
   writeValuesNotBias: 1
-  useLog: 1
+  useLog: 0
+  updateTime: 0
 --- !u!4 &1315735625
 Transform:
   m_ObjectHideFlags: 0
@@ -455,6 +514,70 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1311846688}
+  m_RootOrder: -1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1655428332
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1655428334}
+  - component: {fileID: 1655428333}
+  m_Layer: 0
+  m_Name: Viz GPU (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!114 &1655428333
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1655428332}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cf608ddc4e68e0468432b8c516375f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  neuralNetwork:
+    numInput: 0
+    numOutput: 0
+    layers: []
+    _lastInputs: []
+    lastOutputErrors: []
+  neuronPrefab: {fileID: 5500229481019754907, guid: 1ccb8ede196844f47b0878f2fdaed990, type: 3}
+  connectionPrefab: {fileID: 5777227406779050615, guid: ef12e5af1ad682f4e922b0cb757c9a27, type: 3}
+  textPrefab: {fileID: 5529314599601519131, guid: c1b5eea8de3932040a387a28fb78ab8e, type: 3}
+  positiveConnectionWeight: {fileID: 2100000, guid: 211f76c23334ce04aa7a829937c16542, type: 2}
+  negativeConnectionWeight: {fileID: 2100000, guid: 25c2b4f9423e0ae41a04a30be031a5cf, type: 2}
+  positiveBiasWeight: {fileID: 2100000, guid: 211f76c23334ce04aa7a829937c16542, type: 2}
+  negativeBiasWeight: {fileID: 2100000, guid: 25c2b4f9423e0ae41a04a30be031a5cf, type: 2}
+  neuronAvgScale: 1
+  weightAvgScale: 1
+  neuronColor: {r: 0, g: 0, b: 1, a: 1}
+  connectionColor: {r: 1, g: 1, b: 1, a: 1}
+  writeValuesNotBias: 1
+  useLog: 1
+  updateTime: 0
+--- !u!4 &1655428334
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1655428332}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -4, y: 12, z: 1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1187602266}
   m_RootOrder: -1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1668418323
@@ -504,7 +627,8 @@ MonoBehaviour:
   neuronColor: {r: 0, g: 0, b: 1, a: 1}
   connectionColor: {r: 1, g: 1, b: 1, a: 1}
   writeValuesNotBias: 1
-  useLog: 1
+  useLog: 0
+  updateTime: 0
 --- !u!4 &1668418325
 Transform:
   m_ObjectHideFlags: 0

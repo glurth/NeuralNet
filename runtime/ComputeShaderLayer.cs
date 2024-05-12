@@ -25,7 +25,7 @@ namespace EyE.NNET
         private static readonly string[] biasAndActivationkernelNames = new string[4] { "ApplyBiasAndActivationNone", "ApplyBiasAndActivationReLU", "ApplyBiasAndActivationSigmoid", "ApplyBiasAndActivationTanh01" };
         private static readonly string computeWeightSumKernalName = "OneDimComputeLayerWeightedSum";
         private static readonly string backPrepegateZeroStartKernalName = "BackPropegateZeroErrorsStart";
-        private static readonly string[] backPrepegateKernalNames = new string[4] { "BackPropegateNoneSinglePass", "BackPropegateReLuSinglePass", "BackPropegateSigmoidSinglePass", "BackPropegateTanh01SinglePass", };
+       // private static readonly string[] backPrepegateKernalNames = new string[4] { "BackPropegateNoneSinglePass", "BackPropegateReLuSinglePass", "BackPropegateSigmoidSinglePass", "BackPropegateTanh01SinglePass", };
         
         private static readonly string[] backPrepegateMultiPassKernalNames = new string[4] { "BackPropegateNoneComputeActivationDerivatiePass", "BackPropegateReLuComputeActivationDerivatiePass", "BackPropegateSigmoidComputeActivationDerivatiePass", "BackPropegateTanh01ComputeActivationDerivatiePass", };
         private static readonly string BackPropegateInputPassName = "BackPropegateInputPass";
@@ -37,7 +37,7 @@ namespace EyE.NNET
         int BackPropegateBiasPassKernalIndex;
         int BackPropegateInputPassKernalIndex;
         int backPropZeroKernalIndex;
-        int backPropAlterKernalIndex;
+        //int backPropSinglePassKernalIndex;
 
 
         // Buffers for inputs, outputs, weights, and biases
@@ -49,8 +49,8 @@ namespace EyE.NNET
         private ComputeBuffer propegatedErrorBuffer;
         public ComputeBuffer sourceErrorBuffer;
         public ComputeBuffer activationDerivativeBuffer;
-        //private ComputeBuffer weightsErrorBuffer;
-        //private ComputeBuffer biasesErrorBuffer;
+        private ComputeBuffer weightsErrorBuffer;
+        private ComputeBuffer biasesErrorBuffer;
 
         /// <summary>
         /// 
@@ -67,7 +67,7 @@ namespace EyE.NNET
             if (previousLayer != null)
             {
                 this.inputBuffer = previousLayer.outputBuffer;
-            //    this.propegatedErrorBuffer = previousLayer.sourceErrorBuffer;
+                this.propegatedErrorBuffer = previousLayer.sourceErrorBuffer;
             }
 
             InitBuffers();
@@ -80,7 +80,7 @@ namespace EyE.NNET
             if (previousLayer != null)
             {
                 this.inputBuffer = previousLayer.outputBuffer;
-          //      this.propegatedErrorBuffer = previousLayer.sourceErrorBuffer;
+                this.propegatedErrorBuffer = previousLayer.sourceErrorBuffer;
             }
             InitBuffers();
         }
@@ -97,25 +97,25 @@ namespace EyE.NNET
                 this.computeAddBiasAndActivationKernelIndex = computeShader.FindKernel(biasAndActivationkernelNames[(int)activationFunction]);
             }
             backPropZeroKernalIndex= computeShader.FindKernel(backPrepegateZeroStartKernalName);
-            backPropAlterKernalIndex= computeShader.FindKernel(backPrepegateKernalNames[(int)activationFunction]);
+//            backPropSinglePassKernalIndex= computeShader.FindKernel(backPrepegateKernalNames[(int)activationFunction]);
             BackPropegateBiasPassKernalIndex = computeShader.FindKernel(backPrepegateMultiPassKernalNames[(int)activationFunction]);
             BackPropegateInputPassKernalIndex = computeShader.FindKernel(BackPropegateInputPassName);
 
-
-            //BackPropegateBiasPassKernalIndex = computeShader.FindKernel("BackPropegateBiasPass");
-            //BackPropegateInputSinglePassKernalIndex = computeShader.FindKernel("BackPropegateBiasPass");
-
             // Create buffers for inputs, outputs, weights, and biases during initialization
-            Debug.Log("Initializing Layer Buffers " + ((inputBuffer == null) ? "creating new inputBuffer":"provided existing buffer for input"));
-            if (inputBuffer == null) inputBuffer = new ComputeBuffer(NumInputs, sizeof(float)); //if input buffer was not passed in, create one
+            //Debug.Log("Initializing Layer Buffers " + ((inputBuffer == null) ? "creating new inputBuffer":"provided existing buffer for input"));
+            if (inputBuffer == null) 
+                inputBuffer = new ComputeBuffer(NumInputs, sizeof(float)); //if input buffer was not passed in, create one
             outputBuffer = new ComputeBuffer(NumNeurons, sizeof(float));
             weightsBuffer = new ComputeBuffer(NumNeurons * NumInputs, sizeof(float));
             biasesBuffer = new ComputeBuffer(NumNeurons, sizeof(float));
 
-            //if(propegatedErrorBuffer == null) 
+            if(propegatedErrorBuffer == null) 
                 propegatedErrorBuffer = new ComputeBuffer(NumInputs, sizeof(float));
             activationDerivativeBuffer = new ComputeBuffer(NumNeurons, sizeof(float));
             sourceErrorBuffer = new ComputeBuffer(NumNeurons, sizeof(float));
+
+            weightsErrorBuffer = new ComputeBuffer(NumNeurons * NumInputs, sizeof(float));
+            biasesErrorBuffer= new ComputeBuffer(NumNeurons, sizeof(float));
 
             //assign compute buffers to compute shader
             if (!computeShaderIsSinglePass)
@@ -144,13 +144,15 @@ namespace EyE.NNET
             SetBackPropBuffers(backPropZeroKernalIndex);
             SetBackPropBuffers(BackPropegateBiasPassKernalIndex);
             SetBackPropBuffers(BackPropegateInputPassKernalIndex);
-            
+
+          //  SetBackPropBuffers(backPropSinglePassKernalIndex);
+
             SetShaderWeightsAndBiasData();
         }
         void SetBackPropBuffers(int kernelID)
         {
             computeShader.SetBuffer(kernelID, "progegatedErrorBuffer", propegatedErrorBuffer);
-            if(kernelID!=backPropZeroKernalIndex)
+          //  if(kernelID!=backPropZeroKernalIndex)
                 computeShader.SetBuffer(kernelID, "activationDerivativeBuffer", activationDerivativeBuffer);
 
 
@@ -160,6 +162,11 @@ namespace EyE.NNET
             computeShader.SetBuffer(kernelID, "biasBuffer", biasesBuffer);
             computeShader.SetBuffer(kernelID, "inputBuffer", inputBuffer);
             computeShader.SetBuffer(kernelID, "outputBuffer", outputBuffer);
+
+            computeShader.SetBuffer(kernelID, "biasErrorBuffer", biasesErrorBuffer);
+            computeShader.SetBuffer(kernelID, "weightErrorBuffer", weightsErrorBuffer);
+
+
         }
         private bool disposed = false;
 
@@ -269,6 +276,10 @@ namespace EyE.NNET
             requests.Add(AsyncGPUReadback.Request(biasesBuffer));
             requests.Add(AsyncGPUReadback.Request(propegatedErrorBuffer));
             requests.Add(AsyncGPUReadback.Request(sourceErrorBuffer));
+
+            requests.Add(AsyncGPUReadback.Request(biasesErrorBuffer));
+            requests.Add(AsyncGPUReadback.Request(weightsErrorBuffer));
+
         }
         async public UniTask WaitForGPUData()
         {
@@ -287,8 +298,11 @@ namespace EyE.NNET
             outputBuffer.GetData(outputs);
             weightsBuffer.GetData(weights);
             biasesBuffer.GetData(biases);
+            
             propegatedErrorBuffer.GetData(propagatedErrors);
             sourceErrorBuffer.GetData(sourceErrors);
+            biasesErrorBuffer.GetData(biasErrors);
+            weightsErrorBuffer.GetData(weightsErrors);
             requests.Clear();
         }
 
@@ -345,24 +359,22 @@ namespace EyE.NNET
             computeShader.SetFloat("learningRate", learningRate);
             sourceErrors = errors;
             sourceErrorBuffer.SetData(sourceErrors);
+            computeShader.SetBuffer(backPropZeroKernalIndex, "progegatedErrorBuffer", propegatedErrorBuffer);
+            computeShader.SetBuffer(BackPropegateBiasPassKernalIndex, "progegatedErrorBuffer", propegatedErrorBuffer);
+            computeShader.SetBuffer(BackPropegateInputPassKernalIndex, "progegatedErrorBuffer", propegatedErrorBuffer);
+
             computeShader.Dispatch(backPropZeroKernalIndex, NumInputs, 1, 1);
+
+            //"single" pass version- fails because multipe threads trying to write to same error bufer element
+            //computeShader.Dispatch(backPropSinglePassKernalIndex, NumNeurons, 1, 1);
             
+            //multi pass version
             computeShader.Dispatch(BackPropegateBiasPassKernalIndex, NumNeurons, 1, 1);
-            //computeShader.Dispatch(BackPropegateInputPassKernalIndex, NumNeurons*NumInputs, 1, 1);
             computeShader.Dispatch(BackPropegateInputPassKernalIndex, NumInputs,1, 1);
 
-            //computeShader.Dispatch(backPropAlterKernalIndex, NumNeurons, 1, 1);
+   
             await GetGPUData();
-            /*
-            //float[] ret = new float[NumInputs];
-            await GetFloatArrayFromBuffer(inputErrorBuffer, propagatedErrors);
-            //await GetFloatArrayFromBuffer(weightsBuffer, weights);
-            weightsBuffer.GetData(weights);
-            await GetFloatArrayFromBuffer(biasesBuffer, biases);
-            await GetFloatArrayFromBuffer(outputErrorBuffer, sourceErrors);
-            //biasesBuffer.GetData(biases);
-            */
-
+            
             //float[] ret=base.Backpropagate(inputs, errors, learningRate);
             //SetShaderWeightsAndBiasData();//we modified these with backpropegate- update data on GPU
             return propagatedErrors;

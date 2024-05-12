@@ -2,8 +2,8 @@
 #pragma kernel ComputeLayerReLU
 #pragma kernel ComputeLayerSigmoid
 #pragma kernel ComputeLayerTanh01
-/*#pragma kernel BackPropegateZeroErrorsStart
-#pragma kernel BackPropegateNoneSinglePass
+#pragma kernel BackPropegateZeroErrorsStart
+/*#pragma kernel BackPropegateNoneSinglePass
 #pragma kernel BackPropegateReLuSinglePass
 #pragma kernel BackPropegateSigmoidSinglePass
 #pragma kernel BackPropegateTanh01SinglePass*/
@@ -14,7 +14,7 @@
 #pragma kernel  BackPropegateSigmoidComputeActivationDerivatiePass
 #pragma kernel  BackPropegateTanh01ComputeActivationDerivatiePass
 #pragma kernel  BackPropegateInputPass
-#pragma kernel  BackPropegateInput2DPass
+//#pragma kernel  BackPropegateInput2DPass
 
 // Buffers for weights and biases
 RWStructuredBuffer<float> weightBuffer;// each input has a weight to each neuron, so count: numinputs * numNeurons
@@ -29,8 +29,8 @@ RWStructuredBuffer<float> outputBuffer;//per neuron
 RWStructuredBuffer<float> activationDerivativeBuffer;
 RWStructuredBuffer<float> progegatedErrorBuffer; //per input
 RWStructuredBuffer<float> sourceErrorBuffer; //per neuron
-//StructuredBuffer<float> biasErrorBuffer; //per neuron
-//StructuredBuffer<float> weightErrorBuffer; //per input per neuron
+RWStructuredBuffer<float> biasErrorBuffer; //per neuron
+RWStructuredBuffer<float> weightErrorBuffer; //per input per neuron
 
 uniform float learningRate;
 
@@ -91,14 +91,16 @@ void BackPropegateZeroErrorsStart(uint3 id : SV_DispatchThreadID)//id.x is input
     progegatedErrorBuffer[id.x] = 0;
 }
 /*
+// NOTE: this fails because multile threads are trying to write to the same elemnt of progegatedErrorBuffer
 void BackPropegateSinglePass(int neuronID, float outputActiovationDerivative)
 {
 
     float sourceError = sourceErrorBuffer[neuronID];
     // Compute the gradient for biases   
     float bError = sourceError * outputActiovationDerivative;
-    //biasErrorBuffer[id.x] =bError; // for rendering
+    biasErrorBuffer[neuronID] = bError; // for rendering
     // Update biases
+    //biasBuffer[neuronID] = numInputs;
     biasBuffer[neuronID] -= learningRate * bError; // biasErrorBuffer[id.x];
     uint offset = neuronID * numInputs;
     // Compute the gradient for weights, and sum up input errors for backpropegation
@@ -107,10 +109,10 @@ void BackPropegateSinglePass(int neuronID, float outputActiovationDerivative)
         uint weightIndex = offset + j;
         
         float wError = sourceError * outputActiovationDerivative * inputBuffer[j];
-        //weightErrorBuffer[offset + j] =wError;// for rendering
+        weightErrorBuffer[weightIndex] = wError; // for rendering
         // Accumulate errors to be propagated to the previous layer
        // if (neuronID != 3)
-        //progegatedErrorBuffer[j] += 1;//neuronID; //test should add up to 0.1 * num neurons for each element
+       // progegatedErrorBuffer[j] += neuronID; //test should add up to 0.1 * num neurons for each element
         progegatedErrorBuffer[j] +=sourceError * outputActiovationDerivative * weightBuffer[weightIndex];  //fails! overwrites, does not sum
         //update weights
         weightBuffer[weightIndex] -= learningRate * wError; //weightErrorBuffer[offset + j];
@@ -160,39 +162,6 @@ void BackPropegateTanh01SinglePass(uint3 id : SV_DispatchThreadID)//id.x is neur
 
 }
 
-*/
-void BackPropegateBiasPass(uint3 id)//id.x is neuron index
-{
-    uint neuronID = id.x;
-    float sourceError = sourceErrorBuffer[neuronID];
-    // Compute the gradient for biases   
-    float bError = sourceError * activationDerivativeBuffer[neuronID];
-    //biasErrorBuffer[id.x] =bError; // for rendering
-    // Update biases
-    biasBuffer[neuronID] -= learningRate * bError; // biasErrorBuffer[id.x];
-}
-
-[numthreads(256, 1, 1)]
-void BackPropegateInputPass(uint3 id : SV_DispatchThreadID)//id.x is input index
-{
-    if (id.x >= numInputs)
-        return;
-
-    uint inputIndex = id.x;
-    
-    // Compute the gradient for weights, and sum up input errors for backpropegation
-    for (uint neuronIndex = 0; neuronIndex < numNeurons; neuronIndex++)
-    {
-        uint weightIndex = neuronIndex * numInputs + inputIndex; //each neuron has numInputs inputs -  (total inputs for layer: numNeurons * numInputs)
-        float outputActiovationDerivative = activationDerivativeBuffer[neuronIndex];
-        float sourceError = sourceErrorBuffer[neuronIndex];
-        float wError = sourceError * outputActiovationDerivative * inputBuffer[inputIndex];
-        progegatedErrorBuffer[inputIndex] += sourceError * outputActiovationDerivative * weightBuffer[weightIndex];
-        weightBuffer[weightIndex] -= learningRate * wError;
-    }
-
-}
-
 [numthreads(256, 1, 1)]
 void BackPropegateInput1DPassFAILS(uint3 id : SV_DispatchThreadID)//id.x is weight index
 {
@@ -205,7 +174,7 @@ void BackPropegateInput1DPassFAILS(uint3 id : SV_DispatchThreadID)//id.x is weig
     float outputActiovationDerivative = activationDerivativeBuffer[neuronIndex];
     float sourceError = sourceErrorBuffer[neuronIndex];
     float wError = sourceError * outputActiovationDerivative * inputBuffer[inputIndex];
-    progegatedErrorBuffer[inputIndex] += 0.1;//sourceError * outputActiovationDerivative * weightBuffer[weightIndex];
+    progegatedErrorBuffer[inputIndex] += 0.1; //sourceError * outputActiovationDerivative * weightBuffer[weightIndex];
     weightBuffer[weightIndex] -= learningRate * wError;
 }
 
@@ -223,6 +192,20 @@ void BackPropegateInput2DPass(uint3 id : SV_DispatchThreadID)//id.x is inputInde
     progegatedErrorBuffer[inputIndex] += sourceError * outputActiovationDerivative * weightBuffer[weightIndex];
     weightBuffer[weightIndex] -= learningRate * wError;
 }
+*/
+void BackPropegateBiasPass(uint3 id)//id.x is neuron index
+{
+    uint neuronID = id.x;
+    float sourceError = sourceErrorBuffer[neuronID];
+    // Compute the gradient for biases   
+    float bError = sourceError * activationDerivativeBuffer[neuronID];
+    biasErrorBuffer[neuronID] = bError; // for rendering
+    // Update biases
+    biasBuffer[neuronID] -= learningRate * bError; // biasErrorBuffer[id.x];
+}
+
+
+
 
 [numthreads(256, 1, 1)]
 void BackPropegateNoneComputeActivationDerivatiePass(uint3 id : SV_DispatchThreadID)//id.x is neuron id
@@ -266,4 +249,25 @@ void BackPropegateTanh01ComputeActivationDerivatiePass(uint3 id : SV_DispatchThr
     float lastOutputActivationDerivative = (1 - t) * t; // Derivative of tanh (scaled to [0, 1])
     activationDerivativeBuffer[id.x] = lastOutputActivationDerivative;
     BackPropegateBiasPass(id.x);
+}
+[numthreads(256, 1, 1)]
+void BackPropegateInputPass(uint3 id : SV_DispatchThreadID)//id.x is input index
+{
+    if (id.x >= numInputs)
+        return;
+
+    uint inputIndex = id.x;
+    
+    // Compute the gradient for weights, and sum up input errors for backpropegation
+    for (uint neuronIndex = 0; neuronIndex < numNeurons; neuronIndex++)
+    {
+        uint weightIndex = neuronIndex * numInputs + inputIndex; //each neuron has numInputs inputs -  (total inputs for layer: numNeurons * numInputs)
+        float outputActiovationDerivative = activationDerivativeBuffer[neuronIndex];
+        float sourceError = sourceErrorBuffer[neuronIndex];
+        float wError = sourceError * outputActiovationDerivative * inputBuffer[inputIndex];
+        weightErrorBuffer[weightIndex] = wError;
+        progegatedErrorBuffer[inputIndex] += sourceError * outputActiovationDerivative * weightBuffer[weightIndex];
+        weightBuffer[weightIndex] -= learningRate * wError;
+    }
+
 }

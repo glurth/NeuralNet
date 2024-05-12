@@ -43,8 +43,8 @@ namespace EyE.NNET
             this.activationFunction = activationFunction;
             InitializeWeightsAndBiasesRandom0to1();
             outputs = new float[numNeurons];
-            gradientBiases = new float[numNeurons];
-            gradientWeights = new float[numNeurons, numInputs];
+            biasErrors = new float[numNeurons];
+            weightsErrors = new float[numNeurons, numInputs];
             propagatedErrors = new float[numInputs]; // Errors to be propagated to the previous layer
             sourceErrors = new float[numNeurons];
         }
@@ -58,8 +58,8 @@ namespace EyE.NNET
             this.biases = (float[])source.biases.Clone();
             this.activationFunction = source.activationFunction;
             outputs = new float[numNeurons];
-            gradientBiases = new float[numNeurons];
-            gradientWeights = new float[numNeurons, numInputs];
+            biasErrors = new float[numNeurons];
+            weightsErrors = new float[numNeurons, numInputs];
             propagatedErrors = new float[numInputs]; // Errors to be propagated to the previous layer
             sourceErrors = new float[numNeurons];
         }
@@ -196,8 +196,8 @@ namespace EyE.NNET
             return new UniTask<float[]>(outputs);// Task.FromResult<float[]>(outputs);
         }
 
-        protected float[] gradientBiases; //Error in the biases of each neuron on the layer
-        protected float[,] gradientWeights;// Error in the weight of each connection from each neuron.  [neuronInexInLayer,connectionIndexInNeuron]
+        public float[] biasErrors; //Error in the biases of each neuron on the layer
+        public float[,] weightsErrors;// Error in the weight of each connection from each neuron.  [neuronInexInLayer,connectionIndexInNeuron]
         public float[] propagatedErrors;// Errors to be propagated to the previous layer, one for each neuron on the previous layer.
         public float[] sourceErrors;// Record of the last errors in passed into backpropegate function- one for each output/neuron in the layer.
 
@@ -229,19 +229,19 @@ namespace EyE.NNET
             {
                 float lastOutputActivationDerivative = activationFunction.ApplyActivationFunctionDerivative(lastOutputs[i]);
                 // Compute the gradient for biases
-                gradientBiases[i] = errors[i] * lastOutputActivationDerivative;
+                biasErrors[i] = errors[i] * lastOutputActivationDerivative;
                 // Update biases
-                biases[i] -= learningRate * gradientBiases[i];
+                biases[i] -= learningRate * biasErrors[i];
 
                 // Compute the gradient for weights
                 for (int j = 0; j < numInputs; j++)
                 {
-                    gradientWeights[i, j] = errors[i] * lastOutputActivationDerivative * inputs[j];
+                    weightsErrors[i, j] = errors[i] * lastOutputActivationDerivative * inputs[j];
 
                     // Accumulate errors to be propagated to the previous layer
                     propagatedErrors[j] += errors[i] * lastOutputActivationDerivative * weights[i, j];
                     //update weights
-                    weights[i, j] -= learningRate * gradientWeights[i, j];
+                    weights[i, j] -= learningRate * weightsErrors[i, j];
                 }
             }
             return new UniTask<float[]> (propagatedErrors);

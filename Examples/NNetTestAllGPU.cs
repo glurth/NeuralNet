@@ -3,21 +3,17 @@ using System.Collections.Generic;
 using UnityEngine;
 using EyE.NNET;
 
-public class NNetTesterComparer : MonoBehaviour
+public class NNetTestAllGPU : MonoBehaviour
 {
     public float input0 = 1;
     public float input1 = 1;
     public float inputOp = 0;
 
-    
-    private NeuralNet nnet;
-    public NeuralNet Nnet { get => nnet; set => nnet = value; }
-
-    private NeuralNetComputeShader nnet2;
-    public NeuralNetComputeShader Nnet2 { get => nnet2; set => nnet2 = value; }
+    private NeuralNetComputeShader nnet;
+    public NeuralNetComputeShader Nnet { get => nnet; set => nnet = value; }
 
     public Visualizer display1;
-    public Visualizer display2;
+
     public bool continuousThink = true;
     public bool singleThink = false;
     public ActivationFunction funcToUse;
@@ -29,23 +25,18 @@ public class NNetTesterComparer : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        nnet = new NeuralNet(2, 1);
-        nnet.PopulateLayersRandomly(funcToUse, 5, 4, 5);
-        nnet2 = new NeuralNetComputeShader(nnet, layerComputeShader, singlePassComputeShader);
+
+        nnet = new NeuralNetComputeShader(2,1, layerComputeShader, singlePassComputeShader);
+        nnet.PopulateLayersRandomly(funcToUse, 2, 4, 5);
         if (display1 != null)
         {
             display1.neuralNetwork = nnet;
            // display1.useLog = useLog;
         }
-        if (display2 != null)
-        {
-            display2.neuralNetwork = nnet2;
-           // display2.useLog = useLog;
-        }
+
         if (useLog)
         {
             Debug.Log(nnet.ToString());
-            Debug.Log(nnet2.ToString());
             Debug.Log("*****Start DONE **********");
         }
     }
@@ -53,7 +44,7 @@ public class NNetTesterComparer : MonoBehaviour
     {
         if(useLog)
             Debug.Log("Disposing");
-        nnet2?.Dispose();
+        nnet?.Dispose();
     }
     public int processUntilCycle =-1;
     // Update is called once per frame
@@ -76,7 +67,6 @@ public class NNetTesterComparer : MonoBehaviour
     int changeCounter = 0;
     float[] inputs= new float[2];
     float[] errors = new float[1];
-    float[] errors2 = new float[1];
 
     bool thinkInProgress = false;
     
@@ -95,10 +85,11 @@ public class NNetTesterComparer : MonoBehaviour
         }
         inputs[0] = input0;
         inputs[1] = input1;
-      //  inputs[2] = inputOp;
-        float[] output = await nnet.Think(inputs);//.Result;
+        //  inputs[2] = inputOp;
+        float[] output = await nnet.GPUThink(inputs);
+        //float[] output = await nnet.Think(inputs);//.Result;
+        if (useLog) Debug.Log("Think cycle " + cycleCounter + " Dispatched");
 
-        if (useLog) Debug.Log("Think 1 cycle "+cycleCounter +" done: " + nnet.ToString());
         //goal output is (input0 + input1)
         float error;// = output[0] - (input0 + input1);
       //  if (inputOp < 1)
@@ -106,22 +97,9 @@ public class NNetTesterComparer : MonoBehaviour
       //  else
       //      error = output[0] - (input0 - input1);
         errors[0] = error;
-        nnet.Backpropagate(errors, learningRate);
-        if (useLog) Debug.Log("Backpropagate 1 cycle " + cycleCounter + " done. errors: " + string.Join(",",errors) + nnet.ToString());
+        await nnet.Backpropagate(errors, learningRate);
 
-        float[] output2 = await nnet2.GPUThink(inputs);//
-       // float[] output2 = await nnet2.Think(inputs);//
-       // await nnet2.GetGPUData();
-        if (useLog) Debug.Log("Think 2 cycle " + cycleCounter + " done: " + nnet2.ToString());
-        //goal output is (input0 + input1)
-     //   if(inputOp<1)
-            error = output2[0] - (input0 + input1);
-    //    else
-    //        error = output2[0] - (input0 - input1);
-        errors2[0] = error;
-        await nnet2.Backpropagate(errors2, learningRate);//  await is test
-        //await nnet2.GetGPUData();
-        if(useLog) Debug.Log("Backpropagate 2 cycle " + cycleCounter + " done. errors: " + string.Join(",", errors2) + nnet2.ToString());
+        if (useLog) Debug.Log("Backpropagate 1 cycle " + cycleCounter + " done. errors: " + string.Join(",", errors));// + nnet.ToString());
 
         thinkInProgress = false;
         // Debug.Log(name + " Think cycle " + cycleCounter + "complete-  Input0:" + input0 + "  input1:" + input1 + "   output: " + output[0] + "  error:" + error);

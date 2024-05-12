@@ -242,7 +242,7 @@ namespace EyE.NNET
             return activations;// UniTask.FromResult<float[]>(activations);
         }
         public float[] lastOutputErrors;
-        async public void Backpropagate(float[] outputErrors, float learningRate)
+        async public UniTask Backpropagate(float[] outputErrors, float learningRate)
         {
             if (lastInputs == null)
             {
@@ -274,7 +274,7 @@ namespace EyE.NNET
 
 
                 float[] nextLayerErrors = await layer.Backpropagate(layerInput, outputErrors, learningRate);
-
+                //Debug.Log("Backprop for layer " + i + " completed.  nextLevelErrors: " + string.Join(",",nextLayerErrors));
                 outputErrors = nextLayerErrors; // Update errors for the next iteration
             }
         }
@@ -293,11 +293,14 @@ namespace EyE.NNET
             foreach (NetLayer layer in layers)
             {
                 s += "\n\tLayer " + c;
+                s += "\n\tActivation Function: " + System.Enum.GetName(typeof(ActivationFunction),layer.activationFunction);
                 s += "\n\tInputs: " + string.Join(",", layer.inputs == null ? "null" : string.Join(",", layer.inputs));
                 s += "\n\tNeurons[" + layer.NumNeurons + "]: ";
                 s += "\n\t\tBiases: " + string.Join(",", layer.biases);
+                s += "\n\t\tBiasErrors:" + string.Join(",", layer.biasErrors);
                 s += "\n\t\tOutputs: " + string.Join(",", layer.lastOutputs == null ? "null" : string.Join(",", layer.lastOutputs));
-                s += "\n\t\tWeights:\n"+StringExtension.GenerateFloatTable(layer.weights);
+                s += "\n\t\tWeights:\n"+StringExtension.GenerateFloatTable(layer.weights,false,"\t\t");
+                s += "\n\t\tWeightErrors (COL: input, ROW: neuron):\n" + StringExtension.GenerateFloatTable(layer.weightsErrors, false, "\t\t");
                 s += "\n\t\tpropagatedErrors: " + string.Join(",", layer.propagatedErrors);
                 s += "\n\t\tsourceErrors: " + string.Join(",", layer.sourceErrors);
                 c++;

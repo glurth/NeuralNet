@@ -168,7 +168,8 @@ public class Visualizer : MonoBehaviour
                 for (int i = 0; i < neuralNetwork.NumOutputs; i++)
                 {
                     errors[i].AddValue(neuralNetwork.lastOutputErrors[i]);
-                    Debug.Log(name + " Running Avg Error: " + errors[i].Average);
+                    if(useLog)
+                        Debug.Log(name + " Running Avg Error: " + errors[i].Average);
                 }
             }
         }
@@ -247,10 +248,16 @@ public class Visualizer : MonoBehaviour
         }
     }
 
+    public float updateTime;
+    float lastUpdateTime = 0;
     void Update()
     {
-        CreateNeuralNetworkObjects();
-        UpdateNeuralNetworkObjects();
+        if (lastUpdateTime + updateTime < Time.time)
+        {
+            CreateNeuralNetworkObjects();
+            UpdateNeuralNetworkObjects();
+            lastUpdateTime = Time.time;
+        }
     }
 
 
