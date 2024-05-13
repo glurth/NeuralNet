@@ -207,7 +207,7 @@ namespace EyE.NNET
 
         // Override the ComputeOutputs method to use the compute shader for processing
         // this variant set and gets the data on the gpu, for cpu use
-        // it is intended to be used on all layers AFTER the first layer of the NeuralNet
+        // it is intended to be used on only the first layer of the NeuralNet
         async public override UniTask<float[]> ComputeOutputs(float[] inputs)
         {
             this.inputs = inputs;
@@ -353,7 +353,7 @@ namespace EyE.NNET
            // await Task.Yield();
             return;
         }
-        async public override UniTask<float[]> Backpropagate(float[] inputs, float[] errors, float learningRate)
+        async public override UniTask<float[]> Backpropagate(float[] ignored, float[] errors, float learningRate)
         {
             if (computeShader == null) return new float[0];
             computeShader.SetFloat("learningRate", learningRate);
@@ -372,12 +372,36 @@ namespace EyE.NNET
             computeShader.Dispatch(BackPropegateBiasPassKernalIndex, NumNeurons, 1, 1);
             computeShader.Dispatch(BackPropegateInputPassKernalIndex, NumInputs,1, 1);
 
-   
-            await GetGPUData();
+            await GetFloatArrayFromBuffer(propegatedErrorBuffer, propagatedErrors);
+           // await GetGPUData();
             
             //float[] ret=base.Backpropagate(inputs, errors, learningRate);
             //SetShaderWeightsAndBiasData();//we modified these with backpropegate- update data on GPU
             return propagatedErrors;
         }
+        //this version called on last layer only
+        async public UniTask GPUBackpropagate(float[] errors, float learningRate)
+        {
+           // if (computeShader == null) return;
+         //   computeShader.SetFloat("learningRate", learningRate);
+            sourceErrors = errors;
+            sourceErrorBuffer.SetData(sourceErrors);
+            await GPUBackpropagate(learningRate);
+        }
+        //this called on all layers before last layer (iterated AFTER last layer during backpropegation)
+        async public UniTask GPUBackpropagate(float learningRate)
+        {
+            if (computeShader == null) return;
+            computeShader.SetFloat("learningRate", learningRate);
+
+            computeShader.Dispatch(backPropZeroKernalIndex, NumInputs, 1, 1);
+
+            //"single" pass version- fails because multipe threads trying to write to same error bufer element
+            //computeShader.Dispatch(backPropSinglePassKernalIndex, NumNeurons, 1, 1);
+            //multi pass version
+            computeShader.Dispatch(BackPropegateBiasPassKernalIndex, NumNeurons, 1, 1);
+            computeShader.Dispatch(BackPropegateInputPassKernalIndex, NumInputs, 1, 1);
+        }
+
     }
 }

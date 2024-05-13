@@ -102,13 +102,36 @@ namespace EyE.NNET
                 if (count == 0)//first layer give inputs
                     layer.ComputeLayer(input);
                 else
-                    layer.ComputeLayer();
+                    layer.ComputeLayer();// all layers after first will use output buffer from previous layer as input buffer for current layer
                 if (count == layers.Count - 1)//last layer get outputs
                     lastOutputs = await layer.GetLastComputedOutput();
                 count++;
             }
             //Debug.Log("    NeuralNet processing complete");
             return lastOutputs;// UniTask.FromResult<float[]>(activations);
+        }
+        async public virtual UniTask GPUBackpropagate(float[] outputErrors, float learningRate)
+        {
+            if (lastInputs == null)
+            {
+                Debug.Log("NeuralNet Backpropagation failed. At least one Think Process must be performed before backprpegation can be done.");
+                return;
+            }
+            if (lastInputs.Length != numInput)
+            {
+                Debug.Log("NeuralNet Backpropagation failed. Input size does not match network configuration.");
+                return;
+            }
+            lastOutputErrors = outputErrors;
+            // Backpropagate errors through the layers
+            for (int i = layers.Count - 1; i >= 0; i--)
+            {
+                ComputeShaderLayer layer = layers[i] as ComputeShaderLayer;
+                if (i == layers.Count - 1)
+                    await layer.GPUBackpropagate(outputErrors, learningRate);
+                else
+                    await layer.GPUBackpropagate(learningRate);
+            }
         }
     }
 }
