@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Cysharp.Threading.Tasks;
 using EyE.NNET;
 
 public class NNetTestAllGPU : MonoBehaviour
@@ -17,17 +18,38 @@ public class NNetTestAllGPU : MonoBehaviour
     public bool continuousThink = true;
     public bool singleThink = false;
     public ActivationFunction funcToUse;
+    public int numNetLayers = 2;
+    public int minNeuronsPerLayer = 4;
+    public int maxNeuronsPerLayer = 5;
     public float learningRate = 0.01f;
-    int cycleCounter = 0;
+
+    public int processUntilCycle = -1;
+    public int changeAfterNumAttempts = 100;
+
+
     public ComputeShader layerComputeShader;
     public bool singlePassComputeShader=true;
     public bool useLog = true;
+
+    public string saveFileName = "NNetSeri";
+    public void DoSave()
+    {
+        nnet.SaveJson(saveFileName + ".json");
+        nnet.SaveBinary(saveFileName + ".dat");
+        Debug.Log("Saved");
+    }
+    public void LoadSave()
+    {
+        nnet = new NeuralNetComputeShader(NeuralNet.LoadBinary(saveFileName + ".dat"), layerComputeShader, singlePassComputeShader);
+        //nnet = new NeuralNetComputeShader(NeuralNet.LoadJson(saveFileName + ".json"), layerComputeShader, singlePassComputeShader);
+    }
+
     // Start is called before the first frame update
     void Start()
     {
 
         nnet = new NeuralNetComputeShader(2,1, layerComputeShader, singlePassComputeShader);
-        nnet.PopulateLayersRandomly(funcToUse, 2, 4, 5);
+        nnet.PopulateLayersRandomly(funcToUse, numNetLayers, minNeuronsPerLayer, maxNeuronsPerLayer);
         if (display1 != null)
         {
             display1.neuralNetwork = nnet;
@@ -42,35 +64,49 @@ public class NNetTestAllGPU : MonoBehaviour
     }
     private void OnDestroy()
     {
-        if(useLog)
-            Debug.Log("Disposing");
-        nnet?.Dispose();
+        if (nnet == null) return;
+        if (useLog) Debug.Log("Disposing NeuralNetComputeShader (for GPU layer ComputeBuffers)");
+        nnet.Dispose();
     }
-    public int processUntilCycle =-1;
-    // Update is called once per frame
+
     void Update()
     {
-        
-        for (int i = 0; i < 30; i++)
-        {
-            if (processUntilCycle == -1 || processUntilCycle >= cycleCounter)
-            {
-                if (continuousThink || singleThink)
-                    DoThink();
-            }
-            else
-                continuousThink = false;
-            singleThink = false;
-        }
+        if (!thinkCycleInProgress)
+            CycleThinkAndLearn();
+
     }
-    public int changeAfterNumAttempts = 100;
+
+    int cycleCounter = 0;
     int changeCounter = 0;
     float[] inputs= new float[2];
     float[] errors = new float[1];
-
     bool thinkInProgress = false;
-    
-    async void DoThink()
+    bool thinkCycleInProgress=false;
+
+    async void CycleThinkAndLearn()
+    {
+        thinkCycleInProgress = true;
+        while(continuousThink || singleThink)
+        {
+            if (!thinkInProgress)
+            {
+                await DoThinkAndLearn();
+                if (singleThink)
+                {
+                    singleThink = false;
+                    break;
+                }
+                if (processUntilCycle != -1 && processUntilCycle >= cycleCounter)
+                {
+                    continuousThink = false;
+                    break;
+                }
+            }
+        }
+        thinkCycleInProgress = false;
+    }
+
+    async UniTask DoThinkAndLearn()
     {
         if (thinkInProgress) return;
         thinkInProgress = true;
@@ -86,22 +122,27 @@ public class NNetTestAllGPU : MonoBehaviour
         inputs[0] = input0;
         inputs[1] = input1;
         //  inputs[2] = inputOp;
-        float[] output = await nnet.GPUThink(inputs);
-        //float[] output = await nnet.Think(inputs);//.Result;
-        if (useLog) Debug.Log("Think cycle " + cycleCounter + " Dispatched");
-
-        //goal output is (input0 + input1)
-        float error;// = output[0] - (input0 + input1);
-      //  if (inputOp < 1)
-            error = output[0] - (input0 + input1);
-      //  else
-      //      error = output[0] - (input0 - input1);
-        errors[0] = error;
-        await nnet.Backpropagate(errors, learningRate);
-
-        if (useLog) Debug.Log("Backpropagate 1 cycle " + cycleCounter + " done. errors: " + string.Join(",", errors));// + nnet.ToString());
+        float[] output = await nnet.GPUThink(inputs);//
+        if (useLog)
+        {
+            await nnet.GetGPUData();
+            Debug.Log("Think cycle " + cycleCounter + " done: " + nnet.ToString());
+        }
+        errors = ComputeErrors(inputs, output);
+        await nnet.Backpropagate(errors, learningRate);//  await is test
+        if (useLog)
+        {
+            await nnet.GetGPUData();
+            Debug.Log("Backpropagate cycle " + cycleCounter + " done. errors: " + string.Join(",", errors) + nnet.ToString());
+        }
 
         thinkInProgress = false;
-        // Debug.Log(name + " Think cycle " + cycleCounter + "complete-  Input0:" + input0 + "  input1:" + input1 + "   output: " + output[0] + "  error:" + error);
+    }
+    float[] ComputeErrors(float[] input, float[] output)
+    {
+        //    if (input[2] < 1) //add
+        return new float[] { output[0] - (input[0] + input[1]) };  //goal output is (input0 + input1)
+                                                                   //   else //subtract 
+                                                                   //       return new float[] { output[0] - (input[0] - input[1]) };
     }
 }

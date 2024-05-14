@@ -1,6 +1,6 @@
 using System.Collections;
 using Cysharp.Threading.Tasks;// System.Threading.Tasks;
-
+using System.IO;
 using UnityEngine;
 using UnityEngine.Rendering;
 namespace EyE.NNET
@@ -245,6 +245,62 @@ namespace EyE.NNET
                 }
             }
             return new UniTask<float[]> (propagatedErrors);
+        }
+
+
+        /////////////////////
+        ////// Serialization
+        /////////////////////
+        
+        public NetLayer(int numNeurons, float[,] weights, float[] biases, ActivationFunction activationFunction)
+        {
+            this.numNeurons = numNeurons;
+            this.weights = weights;
+            this.biases = biases;
+            this.activationFunction = activationFunction;
+        }
+
+        public void Serialize(BinaryWriter writer)
+        {
+            writer.Write(numNeurons);
+            // Serialize weights
+            for (int i = 0; i < weights.GetLength(0); i++)
+            {
+                for (int j = 0; j < weights.GetLength(1); j++)
+                {
+                    writer.Write(weights[i, j]);
+                }
+            }
+            // Serialize biases
+            foreach (var bias in biases)
+            {
+                writer.Write(bias);
+            }
+            // Serialize activationFunction
+            writer.Write((int)activationFunction);
+        }
+
+        public static NetLayer Deserialize(BinaryReader reader, int numInputs)
+        {
+            int numNeurons = reader.ReadInt32();
+            // Deserialize weights
+            float[,] weights = new float[numNeurons, numInputs];
+            for (int j = 0; j < numNeurons; j++)
+            {
+                for (int k = 0; k < numInputs; k++)
+                {
+                    weights[j, k] = reader.ReadSingle();
+                }
+            }
+            // Deserialize biases
+            float[] biases = new float[numNeurons];
+            for (int j = 0; j < numNeurons; j++)
+            {
+                biases[j] = reader.ReadSingle();
+            }
+            // Deserialize activationFunction
+            ActivationFunction activationFunction = (ActivationFunction)reader.ReadInt32();
+            return new NetLayer(numNeurons, weights, biases, activationFunction);
         }
 
     }

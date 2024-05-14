@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Cysharp.Threading.Tasks;// System.Threading.Tasks;
+using System.IO;
 
 namespace EyE.NNET
 {
@@ -306,6 +307,52 @@ namespace EyE.NNET
                 c++;
             }
             return s;
+        }
+
+        // Serialize the NeuralNet instance to a binary file
+        public void SaveBinary(string filePath)
+        {
+            using (BinaryWriter writer = new BinaryWriter(File.Open(filePath, FileMode.Create)))
+            {
+                writer.Write(numInput);
+                writer.Write(numOutput);
+                writer.Write(layers.Count);
+                foreach (var layer in layers)
+                {
+                    layer.Serialize(writer);
+                }
+            }
+        }
+
+        // Deserialize a NeuralNet instance from a binary file
+        public static NeuralNet LoadBinary(string filePath)
+        {
+            NeuralNet neuralNet = new NeuralNet(0, 0); // Initialize with default values
+            using (BinaryReader reader = new BinaryReader(File.Open(filePath, FileMode.Open)))
+            {
+                neuralNet.numInput = reader.ReadInt32();
+                neuralNet.numOutput = reader.ReadInt32();
+                int layerCount = reader.ReadInt32();
+                neuralNet.layers = new List<NetLayer>();
+                for (int i = 0; i < layerCount; i++)
+                {
+                    neuralNet.layers.Add(NetLayer.Deserialize(reader, neuralNet.numInput));
+                }
+            }
+            return neuralNet;
+        }
+        // Serialize the NeuralNet instance to a JSON file
+        public void SaveJson(string filePath)
+        {
+            string json = JsonUtility.ToJson(this);
+            File.WriteAllText(filePath, json);
+        }
+
+        // Deserialize a NeuralNet instance from a JSON file
+        public static NeuralNet LoadJson(string filePath)
+        {
+            string json = File.ReadAllText(filePath);
+            return JsonUtility.FromJson<NeuralNet>(json);
         }
     }
 }

@@ -68,7 +68,7 @@ public class NNetTesterComparer : MonoBehaviour
             if (processUntilCycle == -1 || processUntilCycle >= cycleCounter)
             {
                 if (continuousThink || singleThink)
-                    DoThink();
+                    DoThink();  //launch and proceed
             }
             else
                 continuousThink = false;
@@ -98,34 +98,26 @@ public class NNetTesterComparer : MonoBehaviour
         }
         inputs[0] = input0;
         inputs[1] = input1;
-      //  inputs[2] = inputOp;
-        float[] output = await nnet.Think(inputs);//.Result;
+        //  inputs[2] = inputOp;
 
+        ///////////////////
+        //START  CPU net
+        ///////////////////
+        float[] output = await nnet.Think(inputs);
         if (useLog) Debug.Log("Think 1 cycle "+cycleCounter +" done: " + nnet.ToString());
-        //goal output is (input0 + input1)
-        /*float error;// = output[0] - (input0 + input1);
-      //  if (inputOp < 1)
-            error = output[0] - (input0 + input1);
-      //  else
-      //      error = output[0] - (input0 - input1);
-        errors[0] = error;*/
         errors = ComputeErrors(inputs, output);
-        nnet.Backpropagate(errors, learningRate);
+        await nnet.Backpropagate(errors, learningRate);
         if (useLog) Debug.Log("Backpropagate 1 cycle " + cycleCounter + " done. errors: " + string.Join(",",errors) + nnet.ToString());
 
+        ///////////////////
+        //START  GPU net
+        ///////////////////
         float[] output2 = await nnet2.GPUThink(inputs);//
-
         if (useLog)
         {
             await nnet2.GetGPUData();
             Debug.Log("Think 2 cycle " + cycleCounter + " done: " + nnet2.ToString());
         }
-        //goal output is (input0 + input1)
-     /* //   if(inputOp<1)
-            error = output2[0] - (input0 + input1);
-    //    else
-    //        error = output2[0] - (input0 - input1);
-        errors2[0] = error;*/
         errors2 = ComputeErrors(inputs, output2);
         await nnet2.Backpropagate(errors, learningRate);//  await is test
         if (useLog)
@@ -141,8 +133,8 @@ public class NNetTesterComparer : MonoBehaviour
     float[] ComputeErrors(float[] input, float[] output)
     {
     //    if (input[2] < 1) //add
-            return new float[] { output[0] - (input[0] + input[1]) };
-     //   else //subtract 
-     //       return new float[] { output[0] - (input[0] - input[1]) };
+            return new float[] { output[0] - (input[0] + input[1]) };  //goal output is (input0 + input1)
+    //   else //subtract 
+    //       return new float[] { output[0] - (input[0] - input[1]) };
     }
 }
