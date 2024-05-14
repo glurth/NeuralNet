@@ -29,7 +29,9 @@ namespace EyE.NNET
         public float outputValue;
 
         public float bias;
+        [System.NonSerialized]
         public List<int> inputConnections;
+        [System.NonSerialized]
         public List<int> outputConnections;
         public int sequenceIndex; //distance from start, aka "layer"
         public int elementInSequence;// distance into current sequence/layer of this neuron
@@ -43,11 +45,147 @@ namespace EyE.NNET
             outputValue = valSum + bias;
         }
     }
+
+    public class ConnectionNet
+    {
+        //a list of all the connections between neurons in the cnet
+        public List<Connection> allConnections;
+        //a list of all neurons in the Cnet
+        public List<Neuron> allNeurons;
+
+        public List<List<int>> nueronsByLayer;
+        /// <summary>
+        /// list of indexes into `allNeurons`, specifies which neurons have no inputs- these will be fed by the user when asking the CNet to compute
+        /// </summary>
+        public List<int> inputNeurons;
+        
+        /// <summary>
+        /// list of indexes into `allNeurons`, specifies which neurons have no inputs- these will be read by the user after asking the CNet to compute
+        /// </summary>
+        public List<int> outputNeurons;
+
+        List<List<int>> ComputeNeuronSequenceIndexs()
+        {
+            List<List<int>> neuronIndeBylayers = new List<List<int>>();
+            int seqCounter = 0;
+            List<int> currentLayer = new List<int>(inputNeurons);
+            List<int> nextLayer = new List<int>();
+            while (currentLayer.Count > 0)
+            {
+                for (int i = 0; i < currentLayer.Count; i++)
+                {
+                    int nIndex = currentLayer[i];
+                    allNeurons[nIndex].sequenceIndex = seqCounter; //will be updated with 
+                    foreach (int outConnIndex in allNeurons[nIndex].outputConnections)
+                    {
+                        nextLayer.Add(allConnections[outConnIndex].destinationNeuron);
+                    }
+                }
+                currentLayer = nextLayer;
+                seqCounter++;
+                neuronIndeBylayers.Add(new List<int>());
+            }
+            for(int nIndex =0; nIndex<allNeurons.Count; nIndex++)
+            {
+                Neuron n = allNeurons[nIndex];
+                List<int> layerList = neuronIndeBylayers[n.sequenceIndex];
+                n.elementInSequence = layerList.Count;
+                layerList.Add(nIndex);
+            }
+            return neuronIndeBylayers;
+        }
+
+        public void OnDeserialize()
+        {
+            RebuildConnections();
+            inputNeurons = NeuronsWithNoInputConnections();
+            outputNeurons = NeuronsWithNoOutputConnections();
+
+            /// <summary>
+            /// Rebuilds inputConnections and outputConnections for all neurons based on the connections present in the allConnections list.
+            /// </summary>
+            void RebuildConnections()
+            {
+                for (int i = 0; i < allNeurons.Count; i++)
+                {
+                    Neuron neuron = allNeurons[i];
+                    neuron.inputConnections = new List<int>();
+                    neuron.outputConnections = new List<int>();
+
+                    for (int j = 0; j < allConnections.Count; j++)
+                    {
+                        Connection connection = allConnections[j];
+
+                        if (connection.sourceNeuron == i)
+                        {
+                            neuron.outputConnections.Add(connection.destinationNeuron);
+                        }
+
+                        if (connection.destinationNeuron == i)
+                        {
+                            neuron.inputConnections.Add(connection.sourceNeuron);
+                        }
+                    }
+                }
+            }
+            //generate list of input neurons (assumes RebuildConnections has been run)
+            List<int> NeuronsWithNoInputConnections()
+            {
+                List<int> neuronsWithNoInput = new List<int>();
+
+                // Iterate through all neurons to find those with no input connections
+                for (int i = 0; i < allNeurons.Count; i++)
+                {
+                    if (allNeurons[i].inputConnections.Count == 0)
+                    {
+                        neuronsWithNoInput.Add(i);
+                    }
+                }
+
+                return neuronsWithNoInput;
+            }
+            //generate list of output neurons (assumes RebuildConnections has been run)
+            List<int> NeuronsWithNoOutputConnections()
+            {
+                List<int> neuronsWithNoOutput = new List<int>();
+
+                // Iterate through all neurons to find those with no input connections
+                for (int i = 0; i < allNeurons.Count; i++)
+                {
+                    if (allNeurons[i].outputConnections.Count == 0)
+                    {
+                        neuronsWithNoOutput.Add(i);
+                    }
+                }
+
+                return neuronsWithNoOutput;
+            }
+        }
+        void Think(float[] inputs)
+        {
+            List<Neuron> currentSeq = new List<Neuron>();
+            List<Connection> currentSeqConnections = new List<Connection>();
+            int count = 0;
+            foreach (int index in inputNeurons)
+            {
+                Neuron n = allNeurons[index];
+                n.outputValue = inputs[count++];
+                //currentSeq.Add(n.outputConnections);
+            }
+            foreach (Neuron n in allNeurons)
+            {
+                n.ComputeValueFromInputs(this);
+            }
+
+
+
+        }
+    }
     public class Sequence
     {
         public List<Neuron> neurons;
         public List<int> connectionInputs;
-        
+
         static List<Sequence> GenerateSequences(ConnectionNet cnet)
         {
             List<Sequence> seqs = new List<Sequence>();
@@ -71,44 +209,6 @@ namespace EyE.NNET
             }
         }
     }
-    public class ConnectionNet
-    {
-        //a list of all the connections between neurons in the cnet
-        public List<Connection> allConnections;
-        //a list of all neurons in the Cnet
-        public List<Neuron> allNeurons;
-        
-        /// <summary>
-        /// list of indexes into `allNeurons`, specifies which neurons have no inputs- these will be fed by the user when asking the CNet to compute
-        /// </summary>
-        public List<int> inputNeurons;
-        
-        /// <summary>
-        /// list of indexes into `allNeurons`, specifies which neurons have no inputs- these will be read by the user after asking the CNet to compute
-        /// </summary>
-        public List<int> outputNeurons;
-
-        void Think(float[] inputs)
-        {
-            List<Neuron> currentSeq = new List<Neuron>();
-            List<Connection> currentSeqConnections = new List<Connection>();
-            int count = 0;
-            foreach (int index in inputNeurons)
-            {
-                Neuron n = allNeurons[index];
-                n.outputValue = inputs[count++];
-                //currentSeq.Add(n.outputConnections);
-            }
-            foreach (Neuron n in allNeurons)
-            {
-                n.ComputeValueFromInputs(this);
-            }
-
-
-
-        }
-    }
-
     //end test
 
     //this basic NeuralNet uses static layers of neurons.  Every neuron has a connection to every neuron in the previous layer.  The asynchronous `Think` function may be called to process a set of inputs.
@@ -317,9 +417,10 @@ namespace EyE.NNET
                 writer.Write(numInput);
                 writer.Write(numOutput);
                 writer.Write(layers.Count);
+                
                 foreach (var layer in layers)
                 {
-                    layer.Serialize(writer);
+                    layer.SerializeBinary(writer);
                 }
             }
         }
@@ -333,10 +434,11 @@ namespace EyE.NNET
                 neuralNet.numInput = reader.ReadInt32();
                 neuralNet.numOutput = reader.ReadInt32();
                 int layerCount = reader.ReadInt32();
+                
                 neuralNet.layers = new List<NetLayer>();
                 for (int i = 0; i < layerCount; i++)
                 {
-                    neuralNet.layers.Add(NetLayer.Deserialize(reader, neuralNet.numInput));
+                    neuralNet.layers.Add(NetLayer.DeserializeBinary(reader));
                 }
             }
             return neuralNet;

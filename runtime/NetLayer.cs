@@ -1,8 +1,6 @@
-using System.Collections;
 using Cysharp.Threading.Tasks;// System.Threading.Tasks;
 using System.IO;
 using UnityEngine;
-using UnityEngine.Rendering;
 namespace EyE.NNET
 {
     /// <summary>
@@ -252,16 +250,18 @@ namespace EyE.NNET
         ////// Serialization
         /////////////////////
         
-        public NetLayer(int numNeurons, float[,] weights, float[] biases, ActivationFunction activationFunction)
+        public NetLayer(int numInputs,int numNeurons, float[,] weights, float[] biases, ActivationFunction activationFunction)
         {
+            this.numInputs = numInputs;
             this.numNeurons = numNeurons;
             this.weights = weights;
             this.biases = biases;
             this.activationFunction = activationFunction;
         }
 
-        public void Serialize(BinaryWriter writer)
+        public void SerializeBinary(BinaryWriter writer)
         {
+            writer.Write(numInputs);
             writer.Write(numNeurons);
             // Serialize weights
             for (int i = 0; i < weights.GetLength(0); i++)
@@ -280,9 +280,11 @@ namespace EyE.NNET
             writer.Write((int)activationFunction);
         }
 
-        public static NetLayer Deserialize(BinaryReader reader, int numInputs)
+        public static NetLayer DeserializeBinary(BinaryReader reader)
         {
+            int numInputs = reader.ReadInt32();
             int numNeurons = reader.ReadInt32();
+
             // Deserialize weights
             float[,] weights = new float[numNeurons, numInputs];
             for (int j = 0; j < numNeurons; j++)
@@ -300,7 +302,7 @@ namespace EyE.NNET
             }
             // Deserialize activationFunction
             ActivationFunction activationFunction = (ActivationFunction)reader.ReadInt32();
-            return new NetLayer(numNeurons, weights, biases, activationFunction);
+            return new NetLayer(numInputs, numNeurons, weights, biases, activationFunction);
         }
 
     }

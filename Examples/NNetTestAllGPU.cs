@@ -32,16 +32,25 @@ public class NNetTestAllGPU : MonoBehaviour
     public bool useLog = true;
 
     public string saveFileName = "NNetSeri";
+    public string binaryPath => System.IO.Path.Combine("Assets", saveFileName + ".dat");
+    public string jsonPath => System.IO.Path.Combine("Assets", saveFileName + ".json");
+
     public void DoSave()
     {
-        nnet.SaveJson(saveFileName + ".json");
-        nnet.SaveBinary(saveFileName + ".dat");
+        //   nnet.SaveJson(jsonPath);
+        nnet.SaveBinary(binaryPath);
         Debug.Log("Saved");
     }
     public void LoadSave()
     {
-        nnet = new NeuralNetComputeShader(NeuralNet.LoadBinary(saveFileName + ".dat"), layerComputeShader, singlePassComputeShader);
-        //nnet = new NeuralNetComputeShader(NeuralNet.LoadJson(saveFileName + ".json"), layerComputeShader, singlePassComputeShader);
+        nnet = new NeuralNetComputeShader(NeuralNet.LoadBinary(binaryPath), layerComputeShader, singlePassComputeShader);
+        // nnet = new NeuralNetComputeShader(NeuralNet.LoadJson(jsonPath), layerComputeShader, singlePassComputeShader);
+        Debug.Log("Loaded");
+        if (display1 != null)
+        {
+            display1.neuralNetwork = nnet;
+            // display1.useLog = useLog;
+        }
     }
 
     // Start is called before the first frame update
