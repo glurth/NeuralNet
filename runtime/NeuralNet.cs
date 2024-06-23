@@ -343,8 +343,15 @@ namespace EyE.NNET
             return activations;// UniTask.FromResult<float[]>(activations);
         }
         public float[] lastOutputErrors;
+        async public UniTask BackpropagateOnSpecificInput(float[] inputs, float[] outputErrors, float learningRate)
+        {
+            await Think(inputs);
+            await Backpropagate(outputErrors, learningRate);
+        }
         async public UniTask Backpropagate(float[] outputErrors, float learningRate)
         {
+
+
             if (lastInputs == null)
             {
                 Debug.Log("NeuralNet Backpropagation failed. At least one Think Process must be performed before backprpegation can be done.");

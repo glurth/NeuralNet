@@ -310,8 +310,8 @@ namespace EyE.NNET
         async UniTask GetFloatArrayFromBuffer(ComputeBuffer buffer,float[] array)
         {
           //  Debug.Log("getting buffer data");
-            //bool ready = false;
-            UnityEngine.Rendering.AsyncGPUReadbackRequest request = UnityEngine.Rendering.AsyncGPUReadback.Request(buffer);//, (x) => { ready = true; });
+
+            UnityEngine.Rendering.AsyncGPUReadbackRequest request = UnityEngine.Rendering.AsyncGPUReadback.Request(buffer);
             
             while (!request.done)
               await UniTask.Yield();
