@@ -353,7 +353,8 @@ namespace EyE.NNET
            // await Task.Yield();
             return;
         }
-        async public override UniTask<float[]> Backpropagate(float[] ignored, float[] errors, float learningRate)
+        //TODO: add clipping threshold to layer compute shader code
+        async public override UniTask<float[]> Backpropagate(float[] ignored, float[] errors, float learningRate,float gradientClippingThreshold=0)
         {
             if (computeShader == null) return new float[0];
             computeShader.SetFloat("learningRate", learningRate);

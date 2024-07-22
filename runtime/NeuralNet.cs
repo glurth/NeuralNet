@@ -239,6 +239,24 @@ namespace EyE.NNET
         {
             get { return layers; }
         }
+        public IReadOnlyList<NetLayer> HiddenLayers
+        {
+            get {
+                if (layers == null || layers.Count == 0)
+                    return null; 
+                return layers.GetRange(0, layers.Count - 1); 
+                }
+        }
+        public NetLayer OutputLayer
+        {
+            get {
+                if (layers == null || layers.Count == 0)
+                    return null;
+                return layers[layers.Count-1]; 
+                }
+        }
+
+
 
         public NeuralNet Clone()
         {
@@ -343,12 +361,12 @@ namespace EyE.NNET
             return activations;// UniTask.FromResult<float[]>(activations);
         }
         public float[] lastOutputErrors;
-        async public UniTask BackpropagateOnSpecificInput(float[] inputs, float[] outputErrors, float learningRate)
+        async public UniTask BackpropagateOnSpecificInput(float[] inputs, float[] outputErrors, float learningRate, float gradientClippingThreshold = 0)
         {
             await Think(inputs);
-            await Backpropagate(outputErrors, learningRate);
+            await Backpropagate(outputErrors, learningRate, gradientClippingThreshold);
         }
-        async public UniTask Backpropagate(float[] outputErrors, float learningRate)
+        async public UniTask Backpropagate(float[] outputErrors, float learningRate, float gradientClippingThreshold=0)
         {
 
 
@@ -380,8 +398,7 @@ namespace EyE.NNET
                     layerInput = previousLayer.lastOutputs;
                 }
 
-
-                float[] nextLayerErrors = await layer.Backpropagate(layerInput, outputErrors, learningRate);
+                float[] nextLayerErrors = await layer.Backpropagate(layerInput, outputErrors, learningRate, gradientClippingThreshold);
                 //Debug.Log("Backprop for layer " + i + " completed.  nextLevelErrors: " + string.Join(",",nextLayerErrors));
                 outputErrors = nextLayerErrors; // Update errors for the next iteration
             }

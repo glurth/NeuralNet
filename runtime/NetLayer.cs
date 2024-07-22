@@ -206,8 +206,9 @@ namespace EyE.NNET
         /// <param name="inputs"></param>
         /// <param name="errors"></param>
         /// <param name="learningRate"></param>
+        /// <param name="gradientThreshold">propegated errors will be clipped to this max absolute value</param>
         /// <returns></returns>
-        public virtual UniTask<float[]> Backpropagate(float[] inputs, float[] errors, float learningRate)
+        public virtual UniTask<float[]> Backpropagate(float[] inputs, float[] errors, float learningRate,float gradientThreshold=0)
         {
             if (inputs.Length != numInputs || errors.Length != numNeurons)
                 throw new System.ArgumentException("Invalid number of inputs or errors passed to Layer.Backpropagate.");
@@ -238,6 +239,20 @@ namespace EyE.NNET
 
                     // Accumulate errors to be propagated to the previous layer
                     propagatedErrors[j] += errors[i] * lastOutputActivationDerivative * weights[i, j];
+
+                    // Apply gradient clipping if requested
+                    if (gradientThreshold > 0)
+                    {
+                        if (weightsErrors[i, j] > gradientThreshold)
+                        {
+                            weightsErrors[i, j] = gradientThreshold;
+                        }
+                        else if (weightsErrors[i, j] < -gradientThreshold)
+                        {
+                            weightsErrors[i, j] = -gradientThreshold;
+                        }
+                    }
+
                     //update weights
                     weights[i, j] -= learningRate * weightsErrors[i, j];
                 }
