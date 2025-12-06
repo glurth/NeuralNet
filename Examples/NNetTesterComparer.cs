@@ -104,10 +104,10 @@ public class NNetTesterComparer : MonoBehaviour
         //START  CPU net
         ///////////////////
         float[] output = await nnet.Think(inputs);
-        if (useLog) Debug.Log("Think 1 cycle "+cycleCounter +" done: " + nnet.ToString());
+        if (useLog) Debug.Log("Think CPU cycle "+cycleCounter +" done: " + nnet.ToString());
         errors = ComputeErrors(inputs, output);
         await nnet.Backpropagate(errors, learningRate);
-        if (useLog) Debug.Log("Backpropagate 1 cycle " + cycleCounter + " done. errors: " + string.Join(",",errors) + nnet.ToString());
+        if (useLog) Debug.Log("Backpropagate CPU cycle " + cycleCounter + " done. errors: " + string.Join(",",errors) + nnet.ToString());
 
         ///////////////////
         //START  GPU net
@@ -116,14 +116,14 @@ public class NNetTesterComparer : MonoBehaviour
         if (useLog)
         {
             await nnet2.GetGPUData();
-            Debug.Log("Think 2 cycle " + cycleCounter + " done: " + nnet2.ToString());
+            Debug.Log("Think GPU cycle " + cycleCounter + " done: " + nnet2.ToString());
         }
         errors2 = ComputeErrors(inputs, output2);
         await nnet2.Backpropagate(errors, learningRate);//  await is test
         if (useLog)
         {
             await nnet2.GetGPUData();
-            Debug.Log("Backpropagate 2 cycle " + cycleCounter + " done. errors: " + string.Join(",", errors2) + nnet2.ToString());
+            Debug.Log("Backpropagate GPU cycle " + cycleCounter + " done. errors: " + string.Join(",", errors2) + nnet2.ToString());
         }
 
         thinkInProgress = false;
